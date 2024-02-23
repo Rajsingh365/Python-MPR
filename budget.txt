@@ -1,0 +1,3 @@
+Education: 10000
+Rent: 2000
+Luxury: 3000 

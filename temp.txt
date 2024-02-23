@@ -1,0 +1,147 @@
+# investment.py
+import random
+from tkinter import *
+from tkinter import scrolledtext
+import SIM  # Import the SIM module
+
+
+class InvestmentApp(Tk):
+    def __init__(self, monthly_savings, retirement_goal, age, retirement_age):
+        super().__init__()
+        self.monthly_savings = monthly_savings
+        self.retirement_goal = retirement_goal
+        self.age = age
+        self.retirement_age = retirement_age
+        def printKro(self):
+            print(self.age)
+            print(self.retirement_goal)
+            print(self.retirement_age)
+            print(self.monthly_savings)
+        
+        self.title("Investment Scenarios")
+        self.geometry("1000x800")
+
+        # Define scenario details
+        self.scenarios = {
+            "Conservative": {'stocks': 0.2, 'gold': 0.3, 'mutual funds': 0.3, 'fixed deposit': 0.1, 'government schemes': 0.1},
+            "Moderate": {'stocks': 0.4, 'gold': 0.2, 'mutual funds': 0.2, 'fixed deposit': 0.1, 'government schemes': 0.1},
+            "Aggressive": {'stocks': 0.6, 'gold': 0.1, 'mutual funds': 0.2, 'fixed deposit': 0.1, 'government schemes': 0.1}
+        }
+
+        # Add widgets
+        self.label = Label(self, text="Select an Investment Scenario for details:", font=("Helvetica", 16))
+        self.label.pack(pady=20)
+
+        for scenario in self.scenarios.keys():
+            button = Button(self, text=scenario, command=lambda s=scenario: self.show_scenario_window(s))
+            button.pack(pady=10)
+
+        self.best_plan = max(self.get_total_expected_returns(), key=self.get_total_expected_returns().get)
+
+        self.best_plan_label = Label(self, text=f"Best Investment Plan: {self.best_plan}", font=("Helvetica", 12))
+        self.best_plan_label.pack(pady=10)
+
+        self.choose_label = Label(self, text="Choose Suitable Scenario for You:", font=("Helvetica", 16))
+        self.choose_label.pack(pady=10)
+
+        for scenario in self.scenarios.keys():
+            button = Button(self, text=scenario, command=lambda s=scenario: self.call_SIM(s))
+            button.pack(pady=5)
+
+        # Label to display probability
+        self.probability_label = Label(self, text="", font=("Helvetica", 12))
+        self.probability_label.pack(pady=10)
+
+    def show_scenario_window(self, scenario_name):
+        allocation = self.scenarios[scenario_name]
+        total_expected_return = 0
+        annual_inflation_rate = 0.02
+
+        scenario_window = Toplevel(self)
+        scenario_window.title(f"Scenario Analysis for {scenario_name} Plan")
+        scenario_window.geometry("800x600")
+
+        scroll_text = scrolledtext.ScrolledText(scenario_window, width=100, height=30)
+        scroll_text.pack(expand=True, fill='both')
+
+        details = f"\nScenario Analysis for {scenario_name} Plan:\n"
+        details += "\nInvestment Allocation:\n"
+        for option, percentage in allocation.items():
+            details += f"{option.capitalize()}: ₹{self.monthly_savings * percentage:.2f}\n"
+
+        for option, percentage in allocation.items():
+            allocated_amount = self.monthly_savings * percentage
+            expected_return = self.estimate_investment_return(option)
+            if expected_return:
+                expected_return_adjusted = expected_return - annual_inflation_rate
+                total_expected_return += allocated_amount * expected_return_adjusted
+                return_amount = allocated_amount * expected_return_adjusted
+                details += f"\nFor {option.capitalize()}:\n"
+                details += f"Allocated Amount: ₹{allocated_amount:.2f}\n"
+                details += f"Expected Return from Monte Carlo Simulation: {expected_return_adjusted:.2%}\n"
+                details += f"Return Amount: ₹{return_amount:.2f}\n"
+                details += "Risk Level: " + self.get_risk_level(option) + "\n"
+
+        # Call SIM.py to calculate probability
+        probability = SIM.monte_carlo_simulation(self.monthly_savings, self.retirement_goal, self.age, self.retirement_age, allocation)
+        details += f"\nProbability of meeting Retirement Goal: {probability:.2%}\n"
+        self.probability_label.config(text=f"Probability of meeting Retirement Goal for {scenario_name}: {probability:.2%}")
+
+        details += f"\nTotal Expected Returns for {scenario_name} Plan: ₹{total_expected_return:.2f}\n"
+        scroll_text.insert(END, details)
+
+    def estimate_investment_return(self, investment_option, num_simulations=1000):
+        mean_returns = {'stocks': 0.1, 'gold': 0.05, 'mutual funds': 0.08, 'fixed deposit': 0.04, 'government schemes': 0.035}
+        std_devs = {'stocks': 0.15, 'gold': 0.03, 'mutual funds': 0.1, 'fixed deposit': 0.02, 'government schemes': 0.015}
+
+        mean_return = mean_returns.get(investment_option.lower(), 0)
+        std_dev = std_devs.get(investment_option.lower(), 0)
+
+        if mean_return == 0:
+            print("Invalid investment option!")
+            return None
+
+        simulations = [random.gauss(mean_return, std_dev) for _ in range(num_simulations)]
+        return sum(simulations) / len(simulations)
+
+    def get_total_expected_returns(self):
+        total_expected_returns = {}
+        for scenario in self.scenarios.keys():
+            allocation = self.scenarios[scenario]
+            total_expected_return = 0
+            for option, percentage in allocation.items():
+                allocated_amount = self.monthly_savings * percentage
+                expected_return = self.estimate_investment_return(option)
+                if expected_return:
+                    expected_return_adjusted = expected_return - 0.02
+                    total_expected_return += allocated_amount * expected_return_adjusted
+            total_expected_returns[scenario] = total_expected_return
+        return total_expected_returns
+
+    def get_risk_level(self, investment_option):
+        risk_levels = {'stocks': 'High', 'gold': 'Medium', 'mutual funds': 'Medium', 'fixed deposit': 'Low', 'government schemes': 'Low'}
+        return risk_levels.get(investment_option.lower(), 'Unknown')
+
+    def call_SIM(self, scenario):
+        # Call monte_carlo_simulation function from SIM.py
+        probability = SIM.monte_carlo_simulation(self.monthly_savings, self.retirement_goal, self.age, self.retirement_age, self.scenarios[scenario])
+        self.probability_label.config(text=f"Probability of meeting Retirement Goal for {scenario}: {probability:.2%}")
+
+# Sample usage
+if __name__ == "__main__":
+    # Import necessary classes from home.py and BudgetTracker.py
+    from home import age, monthly_income, retirement_age, retirement_goal
+    from BudgetTracker import BudgetTrackercls
+
+    # Create an instance of BudgetTrackercls to fetch necessary parameters
+    budget_tracker = BudgetTrackercls(monthly_income, retirement_goal, age, retirement_age)
+
+    # Get the required parameters from the BudgetTrackercls instance
+    monthly_savings = budget_tracker.monthly_savings
+    retirement_goal = budget_tracker.retirement_goal
+    age = budget_tracker.age
+    retirement_age = budget_tracker.retirement_age
+
+    # Create an instance of InvestmentApp with the fetched parameters
+    app = InvestmentApp(monthly_savings, retirement_goal, age, retirement_age)
+    app.mainloop()
